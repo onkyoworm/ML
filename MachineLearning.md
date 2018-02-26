@@ -88,3 +88,46 @@ k近邻检测webshell 这个就很有意思了</br>
 </br>
 后面的话基本就是常规套路了</br>
 随后补充knn的相关</br>
+</br>
+</br>
+</br>
+接下来是决策树和随机森林了</br>
+决策树其实是非常好理解的一个东西 就像人思考的时候遇到多种条件组合作为判断一样 那什么是随机森林 首先森林是由树组成的 所以里面肯定是需要用到决策树的 那随机是怎么理解呢 打个比方 判断东、西方人 可以通过身高 体重 头发颜色 眼睛颜色进行判断 一个决策树来判断东西方人可以按照身高-->体重-->头发颜色-->眼睛颜色进行判决 另外一个树可以是体重-->身高-->眼睛颜色-->头发颜色来进行判断 当然还有其他的组合 所以说随机就是判决条件的顺序的随机</br>
+那么最后怎么判断随机森林结果呢 是通过输出类别的众数来决定的</br>
+[决策树](http://blog.csdn.net/l18930738887/article/details/47686519) [随机森林](https://segmentfault.com/a/1190000007463203)</br>
+书上的话主要是用决策树检测`POP3`以及`FTP`的暴力破解 随机森林的话也是计算了`FTP`暴力破解</br>
+先讲一下`POP3`暴力破解</br>
+    `POP3`也是一个用来发送邮件的协议 相关的还有`IMAP`以及`SMTP`</br>
+    `POP3` `IMAP`之间的区别主要在客户端 `SMTP` 基于`tcp/ip` 注重的是是否登陆</br>
+代码分析</br>
+数据清洗这里和之前的`检测rootkit`类似 可能因为用的都是`kdd99`数据集的原因</br>
+变化的则是取的值略微不同了 这里用的是`x1[41]`是否是`guess_passwd`以及`normal`还有就是判断`x1[2]`是否是`pop_3`</br>
+最终构成的向量里面用到的是`x1 = [x1[0]] + x1[4:8]+x1[22:30]` 分别为`x1[0] 连接持续时间` `x1[4:8] 字节数 是否同一个端口 错误分段数量 加急包个数` `x1[22:30] 基于时间的网络流量统计`</br>
+主体程序如下</br>
+	
+	v=load_kdd99("../data/kddcup99/corrected")
+    x,y=get_guess_passwdandNormal(v)
+    clf = tree.DecisionTreeClassifier()
+    print  cross_validation.cross_val_score(clf, x, y, n_jobs=-1, cv=10)
+这里和前面所讲的`rootkit`检测基本一样 变化的只是knn算法变成了 决策树`tree.DecisionTreeClassifier()`算法</br>
+另一个则是决策树检测`FTP暴力破解了`</br>
+同样 也是基于`ADFA_LD`数据集进行的测试因此函数结构 函数调用都和上面的`webshell`检测处十分的类似</br>
+    `dirlist()`函数读取文件名字以及路径 最后再拼接在一起 加载训练数据的函数为`load_adfa_training_files()` 加载爆破数据的是`load_adfa_hydra_ftp_files()`函数 同时 训练数据里`y`记为`0` 爆破数据里`y`记为`1`</br>
+核心代码是基本不变的		
+	
+	x1,y1=load_adfa_training_files("../data/ADFA-LD/Training_Data_Master/")
+    x2,y2=load_adfa_hydra_ftp_files("../data/ADFA-LD/Attack_Data_Master/")
+
+    x=x1+x2
+    y=y1+y2
+    #print x
+    vectorizer = CountVectorizer(min_df=1)
+    x=vectorizer.fit_transform(x)
+    x=x.toarray()
+    #print y
+    clf = tree.DecisionTreeClassifier()
+    print  cross_validation.cross_val_score(clf, x, y, n_jobs=-1, cv=10)
+	print np.mean(cross_validation.cross_val_score(clf, x, y, n_jobs=-1, cv=10))
+看完之后不由得产生一个问题 `是不是数据本身决定了使用哪种算法?`</br>
+虽然只是看了一点点 但是就出现了一种感觉 同一种数据样本下 对数据的清洗以及特征值的选取是十分的类似</br>
+先带着这个问题 继续看下去</br>
